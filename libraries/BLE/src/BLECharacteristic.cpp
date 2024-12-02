@@ -463,7 +463,7 @@ void BLECharacteristic::indicate() {
  * will not block; it is a fire and forget.
  * @return N/A.
  */
-void BLECharacteristic::notify(bool is_notification) {
+esp_err_t BLECharacteristic::notify(bool is_notification) {
   log_v(">> notify: length: %d", m_value.getValue().length());
 
   assert(getService() != nullptr);
@@ -476,7 +476,7 @@ void BLECharacteristic::notify(bool is_notification) {
   if (getService()->getServer()->getConnectedCount() == 0) {
     log_v("<< notify: No connected clients.");
     m_pCallbacks->onStatus(this, BLECharacteristicCallbacks::Status::ERROR_NO_CLIENT, 0);
-    return;
+    return ESP_ERR_INVALID_STATE;
   }
 
   // Test to see if we have a 0x2902 descriptor.  If we do, then check to see if notification is enabled
@@ -487,13 +487,13 @@ void BLECharacteristic::notify(bool is_notification) {
     if (p2902 != nullptr && !p2902->getNotifications()) {
       log_v("<< notifications disabled; ignoring");
       m_pCallbacks->onStatus(this, BLECharacteristicCallbacks::Status::ERROR_NOTIFY_DISABLED, 0);  // Invoke the notify callback.
-      return;
+      return ESP_ERR_INVALID_STATE;
     }
   } else {
     if (p2902 != nullptr && !p2902->getIndications()) {
       log_v("<< indications disabled; ignoring");
       m_pCallbacks->onStatus(this, BLECharacteristicCallbacks::Status::ERROR_INDICATE_DISABLED, 0);  // Invoke the notify callback.
-      return;
+      return ESP_ERR_INVALID_STATE;
     }
   }
   for (auto &myPair : getService()->getServer()->getPeerDevices(false)) {
@@ -513,7 +513,7 @@ void BLECharacteristic::notify(bool is_notification) {
       log_e("<< esp_ble_gatts_send_ %s: rc=%d %s", is_notification ? "notify" : "indicate", errRc, GeneralUtils::errorToString(errRc));
       m_semaphoreConfEvt.give();
       m_pCallbacks->onStatus(this, BLECharacteristicCallbacks::Status::ERROR_GATT, errRc);  // Invoke the notify callback.
-      return;
+      return errRc;
     }
     if (!is_notification) {  // is indication
       if (!m_semaphoreConfEvt.timedWait("indicate", indicationTimeout)) {
@@ -531,6 +531,7 @@ void BLECharacteristic::notify(bool is_notification) {
     }
   }
   log_v("<< notify");
+  return ESP_OK;
 }  // Notify
 
 /**

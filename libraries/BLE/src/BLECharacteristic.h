@@ -20,6 +20,7 @@
 #include "BLEDescriptor.h"
 #include "BLEValue.h"
 #include "RTOS.h"
+#include <esp_err.h>
 
 class BLEService;
 class BLEDescriptor;
@@ -68,7 +69,7 @@ public:
   size_t getLength();
 
   void indicate();
-  void notify(bool is_notification = true);
+  esp_err_t notify(bool is_notification = true);
   void setBroadcastProperty(bool value);
   void setCallbacks(BLECharacteristicCallbacks *pCallbacks);
   void setIndicateProperty(bool value);
